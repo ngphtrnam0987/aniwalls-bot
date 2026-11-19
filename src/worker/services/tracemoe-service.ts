@@ -178,11 +178,17 @@ export class TraceMoeService {
         titles.romaji = `AniList ID #${r.anilist}`;
       }
 
+      const timeRangeFormatted = `${this.formatTimestamp(r.from)} - ${this.formatTimestamp(r.to)}`;
+
       return {
         animeTitle: titles,
         episode: r.episode ?? null,
         timestamp: r.from,
         timestampFormatted: this.formatTimestamp(r.from),
+        timeRangeFormatted,
+        from: r.from,
+        to: r.to,
+        filename: r.filename,
         similarity: similarityPercentage,
         confidenceLabel: this.getConfidence(similarityPercentage),
         videoPreviewUrl: r.video,

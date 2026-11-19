@@ -858,10 +858,14 @@ function buildSauceCaption(r: ReverseSearchItem): string {
 
   let text = `🔎 <b>KẾT QUẢ TÌM NGUỒN TRANH (SauceNAO)</b>\n\n`;
   text += `📊 <b>Độ khớp:</b> [${bar}] ${sim}% (${r.confidenceLabel.toUpperCase()})\n`;
+  if (r.platformName) text += `🏛 <b>Nền tảng:</b> ${escapeHtml(r.platformName)}\n`;
   if (r.title) text += `🎨 <b>Tiêu đề:</b> ${escapeHtml(r.title)}\n`;
   if (r.series) text += `📚 <b>Series:</b> ${escapeHtml(r.series)}\n`;
   if (r.character) text += `👤 <b>Nhân vật:</b> ${escapeHtml(r.character)}\n`;
   if (r.authorName) text += `🖌 <b>Tác giả:</b> ${escapeHtml(r.authorName)}\n`;
+  if (r.twitterHandle) text += `🐦 <b>Twitter:</b> @${escapeHtml(r.twitterHandle)}\n`;
+  if (r.pixivId) text += `🆔 <b>Pixiv ID:</b> <code>${r.pixivId}</code>\n`;
+  if (r.danbooruId) text += `🆔 <b>Danbooru ID:</b> <code>${r.danbooruId}</code>\n`;
 
   return text;
 }
@@ -895,8 +899,10 @@ function buildSceneCaption(r: SceneSearchItem): string {
   let text = `🎬 <b>NHẬN DIỆN CẢNH PHIM ANIME (trace.moe)</b>\n\n`;
   text += `📺 <b>Tên Anime:</b> ${escapeHtml(r.animeTitle.romaji)}\n`;
   if (r.animeTitle.english) text += `🇬🇧 <b>Tiếng Anh:</b> ${escapeHtml(r.animeTitle.english)}\n`;
+  if (r.animeTitle.native) text += `🇯🇵 <b>Tên gốc:</b> ${escapeHtml(r.animeTitle.native)}\n`;
   if (r.episode !== null) text += `🎞 <b>Tập phim:</b> Tập ${r.episode}\n`;
-  text += `⏱ <b>Thời điểm:</b> ${r.timestampFormatted}\n`;
+  text += `⏱ <b>Thời điểm:</b> ${r.timeRangeFormatted || r.timestampFormatted}\n`;
+  if (r.filename) text += `📁 <b>Tập tin:</b> <code>${escapeHtml(r.filename)}</code>\n`;
   text += `📊 <b>Độ khớp:</b> [${bar}] ${sim}% (${r.confidenceLabel.toUpperCase()})\n`;
 
   return text;

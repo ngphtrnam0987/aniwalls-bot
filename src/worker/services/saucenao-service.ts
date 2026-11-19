@@ -24,8 +24,29 @@ interface SauceNaoResponse {
       creator?: string;
       material?: string;
       characters?: string;
+      pixiv_id?: number;
+      danbooru_id?: number;
+      gelbooru_id?: number;
+      yandere_id?: number;
+      twitter_user_id?: string;
+      twitter_user_handle?: string;
     };
   }>;
+}
+
+function getPlatformName(indexName?: string, sourceUrl?: string): string {
+  const lowerIndex = (indexName || '').toLowerCase();
+  const lowerUrl = (sourceUrl || '').toLowerCase();
+
+  if (lowerIndex.includes('pixiv') || lowerUrl.includes('pixiv.net')) return 'Pixiv';
+  if (lowerIndex.includes('twitter') || lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) return 'Twitter / X';
+  if (lowerIndex.includes('danbooru') || lowerUrl.includes('donmai.us')) return 'Danbooru';
+  if (lowerIndex.includes('gelbooru') || lowerUrl.includes('gelbooru.com')) return 'Gelbooru';
+  if (lowerIndex.includes('yande.re') || lowerUrl.includes('yande.re')) return 'Yande.re';
+  if (lowerIndex.includes('deviantart') || lowerUrl.includes('deviantart.com')) return 'DeviantArt';
+  if (lowerIndex.includes('artstation') || lowerUrl.includes('artstation.com')) return 'ArtStation';
+  if (lowerIndex.includes('seiga') || lowerUrl.includes('nicovideo.jp')) return 'Nico Nico Seiga';
+  return indexName ? indexName.replace(/^Index #\d+:\s*/i, '').trim() : 'Artwork Database';
 }
 
 export class SauceNaoService {
@@ -189,6 +210,7 @@ export class SauceNaoService {
       const data = r.data;
       const authorName = data.author_name || data.member_name || data.creator;
       const sourceUrl = (data.ext_urls && data.ext_urls[0]) || data.source;
+      const platformName = getPlatformName(r.header.index_name, sourceUrl);
 
       return {
         similarity,
@@ -201,6 +223,10 @@ export class SauceNaoService {
         sourceUrl,
         thumbnailUrl: r.header.thumbnail,
         material: data.material,
+        platformName,
+        pixivId: data.pixiv_id,
+        danbooruId: data.danbooru_id,
+        twitterHandle: data.twitter_user_handle,
         externalUrls: data.ext_urls || []
       };
     });

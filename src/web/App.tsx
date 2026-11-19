@@ -235,6 +235,12 @@ export const App: React.FC = () => {
               setExploreQuery(q);
               setCurrentTab('explore');
             }}
+            onSelectWallpaper={(w) => {
+              triggerHaptic('light');
+              setSelectedWallpaper(w);
+            }}
+            onToggleFavorite={handleToggleFavorite}
+            favoriteIds={favoriteIds}
           />
         )}
 

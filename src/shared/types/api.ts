@@ -74,6 +74,10 @@ export interface ReverseSearchItem {
   sourceUrl?: string;
   thumbnailUrl?: string;
   material?: string;
+  platformName?: string;
+  pixivId?: number;
+  danbooruId?: number;
+  twitterHandle?: string;
   externalUrls?: string[];
 }
 
@@ -95,6 +99,10 @@ export interface SceneSearchItem {
   episode: number | string | null;
   timestamp: number;
   timestampFormatted: string;
+  timeRangeFormatted?: string;
+  from?: number;
+  to?: number;
+  filename?: string;
   similarity: number;
   confidenceLabel: ConfidenceLabel;
   videoPreviewUrl?: string;
