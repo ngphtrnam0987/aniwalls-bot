@@ -1,4 +1,11 @@
-export type ProviderName = 'wallhaven' | 'konachan' | 'safebooru';
+export type ProviderName =
+  | 'wallhaven'
+  | 'konachan'
+  | 'safebooru'
+  | 'yandere'
+  | 'danbooru'
+  | 'tbib'
+  | 'nekos_best';
 
 export type WallpaperRating = 'safe' | 'questionable' | 'explicit';
 

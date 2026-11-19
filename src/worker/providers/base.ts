@@ -1,4 +1,4 @@
-import { Wallpaper, SearchFilters, ResolutionFilter, OrientationFilter, AspectRatioFilter } from '@/shared/types/wallpaper';
+import { Wallpaper, SearchFilters, ResolutionFilter, OrientationFilter, AspectRatioFilter, ProviderName } from '@/shared/types/wallpaper';
 
 export interface ProviderResult {
   wallpapers: Wallpaper[];
@@ -6,7 +6,7 @@ export interface ProviderResult {
 }
 
 export interface WallpaperProvider {
-  name: 'wallhaven' | 'konachan' | 'safebooru';
+  name: ProviderName;
   search(filters: SearchFilters): Promise<ProviderResult>;
   getById(id: string): Promise<Wallpaper | null>;
 }

@@ -31,7 +31,15 @@ export const Explore: React.FC<ExploreProps> = ({
   const [query, setQuery] = useState(initialQuery);
   const [orientation, setOrientation] = useState<OrientationFilter>(initialOrientation);
   const [resolution, setResolution] = useState<ResolutionFilter>(initialResolution);
-  const [selectedProviders, setSelectedProviders] = useState<ProviderName[]>(['wallhaven', 'konachan', 'safebooru']);
+  const [selectedProviders, setSelectedProviders] = useState<ProviderName[]>([
+    'wallhaven',
+    'konachan',
+    'safebooru',
+    'yandere',
+    'danbooru',
+    'tbib',
+    'nekos_best'
+  ]);
   const [sort, setSort] = useState<SortFilter>('relevance');
 
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);

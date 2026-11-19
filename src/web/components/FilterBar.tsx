@@ -43,7 +43,25 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     { id: '8k', label: '8K UHD' }
   ];
 
-  const allProviders: ProviderName[] = ['wallhaven', 'konachan', 'safebooru'];
+  const allProviders: ProviderName[] = [
+    'wallhaven',
+    'konachan',
+    'safebooru',
+    'yandere',
+    'danbooru',
+    'tbib',
+    'nekos_best'
+  ];
+
+  const providerLabels: Record<ProviderName, string> = {
+    wallhaven: 'Wallhaven',
+    konachan: 'Konachan',
+    safebooru: 'Safebooru',
+    yandere: 'Yande.re',
+    danbooru: 'Danbooru',
+    tbib: 'TBIB',
+    nekos_best: 'Nekos.best'
+  };
 
   const sorts: Array<{ id: SortFilter; label: string }> = [
     { id: 'relevance', label: t.relevance },
@@ -103,13 +121,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <button
               key={p}
               onClick={() => onToggleProvider(p)}
-              className={`px-3 py-1 rounded-full text-xs font-medium uppercase whitespace-nowrap transition-all ${
+              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                 isSelected
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                   : 'glass-button text-gray-400 opacity-60'
               }`}
             >
-              {p}
+              {providerLabels[p] || p}
             </button>
           );
         })}

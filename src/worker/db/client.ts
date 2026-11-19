@@ -76,16 +76,17 @@ export class DbClient {
       }>();
 
     if (!row) {
+      const allDefault = ['wallhaven', 'konachan', 'safebooru', 'yandere', 'danbooru', 'tbib', 'nekos_best'];
       return {
         telegram_user_id,
         preferred_resolution: 'all',
         preferred_orientation: 'all',
-        enabled_providers: ['wallhaven'],
+        enabled_providers: allDefault as any,
         language: 'vi',
         user_id: telegram_user_id,
         default_resolution: 'all',
         default_orientation: 'all',
-        selected_providers: ['wallhaven'],
+        selected_providers: allDefault as any,
         daily_enabled: false,
         daily_time: '09:00',
         timezone: 'Asia/Ho_Chi_Minh'

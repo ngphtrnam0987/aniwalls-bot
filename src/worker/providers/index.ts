@@ -3,6 +3,20 @@ import { WallpaperProvider } from './base';
 import { WallhavenProvider } from './wallhaven';
 import { KonachanProvider } from './konachan';
 import { SafebooruProvider } from './safebooru';
+import { YandereProvider } from './yandere';
+import { DanbooruProvider } from './danbooru';
+import { TBIBProvider } from './tbib';
+import { NekosBestProvider } from './nekos-best';
+
+const ALL_PROVIDERS: ProviderName[] = [
+  'wallhaven',
+  'konachan',
+  'safebooru',
+  'yandere',
+  'danbooru',
+  'tbib',
+  'nekos_best'
+];
 
 export class SearchEngine {
   private providers: Map<ProviderName, WallpaperProvider> = new Map();
@@ -11,13 +25,17 @@ export class SearchEngine {
     this.providers.set('wallhaven', new WallhavenProvider(options?.wallhavenApiKey));
     this.providers.set('konachan', new KonachanProvider());
     this.providers.set('safebooru', new SafebooruProvider());
+    this.providers.set('yandere', new YandereProvider());
+    this.providers.set('danbooru', new DanbooruProvider());
+    this.providers.set('tbib', new TBIBProvider());
+    this.providers.set('nekos_best', new NekosBestProvider());
   }
 
   async search(filters: SearchFilters): Promise<SearchResult> {
     const startTime = Date.now();
     const activeProviders = (filters.providers && filters.providers.length > 0)
       ? filters.providers
-      : (['wallhaven', 'konachan', 'safebooru'] as ProviderName[]);
+      : ALL_PROVIDERS;
 
     const targetProviders = activeProviders
       .map((p) => this.providers.get(p))
