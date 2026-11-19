@@ -128,6 +128,11 @@ export const ApiClient = {
   // Settings
   async getSettings(initData?: string): Promise<UserSettings> {
     const defaultSettings: UserSettings = {
+      telegram_user_id: 0,
+      preferred_resolution: 'all',
+      preferred_orientation: 'all',
+      enabled_providers: ['wallhaven', 'konachan', 'safebooru'],
+      language: 'vi',
       user_id: 0,
       default_resolution: 'all',
       default_orientation: 'all',

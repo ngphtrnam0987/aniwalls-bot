@@ -10,29 +10,55 @@ export interface UserProfile {
 }
 
 export interface UserSettings {
+  telegram_user_id: number;
+  preferred_resolution: ResolutionFilter;
+  preferred_orientation: OrientationFilter;
+  enabled_providers: ProviderName[];
+  language: string;
+  updated_at?: string;
+
+  // Compatibility fields for web clients
   user_id: number;
   default_resolution: ResolutionFilter;
   default_orientation: OrientationFilter;
   selected_providers: ProviderName[];
   daily_enabled: boolean;
-  daily_time: string; // HH:mm format e.g. "09:00"
-  timezone: string; // e.g. "Asia/Ho_Chi_Minh"
-  updated_at?: string;
+  daily_time: string;
+  timezone: string;
 }
 
-export interface FavoriteItem {
-  user_id: number;
+export interface FavoriteRecord {
+  id: string;
+  telegram_user_id: number;
+  provider: ProviderName;
   wallpaper_id: string;
+  metadata_json: string;
   created_at: string;
   wallpaper?: Wallpaper;
 }
 
-export interface SearchHistoryItem {
+export interface SearchHistoryRecord {
   id: number;
-  user_id: number;
+  telegram_user_id: number;
   query: string;
   filters_json?: string;
   created_at: string;
+}
+
+export interface TelegramFileCacheRecord {
+  provider: ProviderName;
+  wallpaper_id: string;
+  telegram_file_id: string;
+  created_at: string;
+}
+
+export interface SearchSessionRecord {
+  session_id: string;
+  telegram_user_id: number;
+  query: string;
+  filters_json: string;
+  current_page: number;
+  expires_at: number;
 }
 
 export interface ReverseSearchResult {

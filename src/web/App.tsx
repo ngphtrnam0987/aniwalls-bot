@@ -33,6 +33,11 @@ export const App: React.FC = () => {
 
   // Settings
   const [userSettings, setUserSettings] = useState<UserSettings>({
+    telegram_user_id: user?.id || 0,
+    preferred_resolution: 'all',
+    preferred_orientation: 'all',
+    enabled_providers: ['wallhaven', 'konachan', 'safebooru'],
+    language: 'vi',
     user_id: user?.id || 0,
     default_resolution: 'all',
     default_orientation: 'all',

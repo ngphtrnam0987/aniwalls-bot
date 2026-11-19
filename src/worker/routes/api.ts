@@ -45,14 +45,6 @@ apiRouter.get('/search', async (c) => {
     } catch {}
   }
 
-  // Pre-cache retrieved wallpapers in D1
-  if (result.wallpapers && result.wallpapers.length > 0) {
-    const db = new DbClient(c.env.DB);
-    c.executionCtx.waitUntil(
-      Promise.all(result.wallpapers.map((w) => db.cacheWallpaper(w)))
-    );
-  }
-
   return c.json({ success: true, data: result });
 });
 
@@ -77,17 +69,8 @@ apiRouter.get('/random', async (c) => {
 // GET /api/wallpapers/:id
 apiRouter.get('/wallpapers/:id', async (c) => {
   const id = c.req.param('id');
-  const db = new DbClient(c.env.DB);
-
-  // 1. Try D1 cache
-  let wallpaper = await db.getCachedWallpaper(id);
-  if (!wallpaper) {
-    const searchEngine = new SearchEngine({ wallhavenApiKey: c.env.WALLHAVEN_API_KEY });
-    wallpaper = await searchEngine.getById(id);
-    if (wallpaper) {
-      await db.cacheWallpaper(wallpaper);
-    }
-  }
+  const searchEngine = new SearchEngine({ wallhavenApiKey: c.env.WALLHAVEN_API_KEY });
+  const wallpaper = await searchEngine.getById(id);
 
   if (!wallpaper) {
     return c.json({ success: false, error: 'Không tìm thấy hình nền.' }, 404);
@@ -131,11 +114,8 @@ apiRouter.post('/favorites', telegramAuthMiddleware, async (c) => {
   let wallpaper = body.wallpaper;
 
   if (!wallpaper) {
-    wallpaper = await db.getCachedWallpaper(body.wallpaper_id);
-    if (!wallpaper) {
-      const searchEngine = new SearchEngine({ wallhavenApiKey: c.env.WALLHAVEN_API_KEY });
-      wallpaper = await searchEngine.getById(body.wallpaper_id);
-    }
+    const searchEngine = new SearchEngine({ wallhavenApiKey: c.env.WALLHAVEN_API_KEY });
+    wallpaper = await searchEngine.getById(body.wallpaper_id);
   }
 
   if (!wallpaper) {
@@ -154,8 +134,12 @@ apiRouter.delete('/favorites/:id', telegramAuthMiddleware, async (c) => {
     return c.json({ success: false, error: 'Thiếu wallpaper_id.' }, 400);
   }
 
+  const parts = wallpaperId.split('_');
+  const provider = parts[0];
+  const postId = parts.slice(1).join('_');
+
   const db = new DbClient(c.env.DB);
-  await db.removeFavorite(userId, wallpaperId);
+  await db.removeFavorite(userId, provider, postId);
 
   return c.json({ success: true, message: 'Đã xóa khỏi danh sách yêu thích.' });
 });
@@ -198,7 +182,12 @@ apiRouter.patch('/settings', telegramAuthMiddleware, async (c) => {
   }
 
   const db = new DbClient(c.env.DB);
-  await db.updateUserSettings(userId, parsed.data);
+  await db.updateUserSettings(userId, {
+    preferred_resolution: parsed.data.default_resolution,
+    preferred_orientation: parsed.data.default_orientation,
+    enabled_providers: parsed.data.selected_providers,
+    language: 'vi'
+  });
   const updated = await db.getUserSettings(userId);
 
   return c.json({ success: true, data: updated });

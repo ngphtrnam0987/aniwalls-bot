@@ -28,7 +28,6 @@ export async function telegramAuthMiddleware(
     await db.upsertUser({
       telegram_user_id: result.user.id,
       username: result.user.username,
-      display_name: [result.user.first_name, result.user.last_name].filter(Boolean).join(' '),
       language: result.user.language_code || 'vi'
     });
   } catch (err) {
