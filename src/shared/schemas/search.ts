@@ -7,7 +7,9 @@ export const ProviderEnum = z.enum([
   'yandere',
   'danbooru',
   'tbib',
-  'nekos_best'
+  'nekos_best',
+  'zerochan',
+  'nekosapi'
 ]);
 export const OrientationEnum = z.enum(['all', 'landscape', 'portrait', 'ultrawide', 'square']);
 export const ResolutionEnum = z.enum(['all', '1080p', '2k', '4k', '8k']);
@@ -25,11 +27,12 @@ export const SearchQuerySchema = z.object({
       }
     }
     return val;
-  }, z.array(ProviderEnum).default(['wallhaven', 'konachan', 'safebooru', 'yandere', 'danbooru', 'tbib', 'nekos_best'])),
+  }, z.array(ProviderEnum).default(['wallhaven', 'konachan', 'safebooru', 'yandere', 'danbooru', 'tbib', 'nekos_best', 'zerochan', 'nekosapi'])),
   orientation: OrientationEnum.default('all'),
   resolution: ResolutionEnum.default('all'),
   aspectRatio: AspectRatioEnum.default('all'),
   sort: SortEnum.default('relevance'),
+  color: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   sfwOnly: z.preprocess((val) => {
@@ -41,7 +44,7 @@ export const SearchQuerySchema = z.object({
 export const UserSettingsSchema = z.object({
   default_resolution: ResolutionEnum.default('all'),
   default_orientation: OrientationEnum.default('all'),
-  selected_providers: z.array(ProviderEnum).default(['wallhaven', 'konachan', 'safebooru', 'yandere', 'danbooru', 'tbib', 'nekos_best']),
+  selected_providers: z.array(ProviderEnum).default(['wallhaven', 'konachan', 'safebooru', 'yandere', 'danbooru', 'tbib', 'nekos_best', 'zerochan', 'nekosapi']),
   daily_enabled: z.boolean().default(false),
   daily_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).default('09:00'),
   timezone: z.string().default('Asia/Ho_Chi_Minh')

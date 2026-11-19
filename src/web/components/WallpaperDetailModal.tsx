@@ -219,6 +219,86 @@ export const WallpaperDetailModal: React.FC<WallpaperDetailModalProps> = ({
             </div>
           </div>
 
+          {/* Dominant Color & Color Palette Swatches */}
+          {(wallpaper.dominantColor || (wallpaper.colorPalette && wallpaper.colorPalette.length > 0)) && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] border border-white/5">
+              <div className="flex items-center space-x-2">
+                <span className="text-[11px] font-semibold text-gray-400">Bảng màu:</span>
+                {wallpaper.dominantColor && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(wallpaper.dominantColor!);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    }}
+                    className="flex items-center space-x-1.5 px-2 py-0.5 rounded-lg border border-white/10 hover:border-white/30 text-[11px] font-mono text-gray-200 transition-all"
+                    title="Sao chép mã màu HEX"
+                  >
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-white/20"
+                      style={{ backgroundColor: wallpaper.dominantColor }}
+                    />
+                    <span>{wallpaper.dominantColor}</span>
+                  </button>
+                )}
+                {wallpaper.colorPalette && wallpaper.colorPalette.slice(0, 5).map((hex) => (
+                  <button
+                    key={hex}
+                    onClick={() => {
+                      navigator.clipboard.writeText(hex);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    }}
+                    className="w-4 h-4 rounded-full border border-white/20 hover:scale-125 transition-transform"
+                    style={{ backgroundColor: hex }}
+                    title={`Bấm để sao chép ${hex}`}
+                  />
+                ))}
+              </div>
+              <span className="text-[10px] text-gray-500">1-click copy HEX</span>
+            </div>
+          )}
+
+          {/* Characters & Series Section */}
+          {((wallpaper.characters && wallpaper.characters.length > 0) || (wallpaper.series && wallpaper.series.length > 0)) && (
+            <div className="space-y-2 p-3 rounded-2xl bg-white/[0.02] border border-white/5 text-xs">
+              {wallpaper.characters && wallpaper.characters.length > 0 && (
+                <div className="flex items-center flex-wrap gap-1.5">
+                  <span className="text-[11px] text-pink-400 font-semibold mr-1">Nhân vật:</span>
+                  {wallpaper.characters.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => {
+                        if (onTagClick) onTagClick(c);
+                        onClose();
+                      }}
+                      className="px-2.5 py-0.5 rounded-lg bg-pink-500/15 border border-pink-500/30 text-pink-200 text-xs font-medium hover:bg-pink-500/25 transition-colors"
+                    >
+                      👤 {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {wallpaper.series && wallpaper.series.length > 0 && (
+                <div className="flex items-center flex-wrap gap-1.5">
+                  <span className="text-[11px] text-purple-400 font-semibold mr-1">Tác phẩm / Anime:</span>
+                  {wallpaper.series.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        if (onTagClick) onTagClick(s);
+                        onClose();
+                      }}
+                      className="px-2.5 py-0.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-200 text-xs font-medium hover:bg-purple-500/25 transition-colors"
+                    >
+                      📺 {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Tags Section */}
           {wallpaper.tags && wallpaper.tags.length > 0 && (
             <div className="space-y-2">

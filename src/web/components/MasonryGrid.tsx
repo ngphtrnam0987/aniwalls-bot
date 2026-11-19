@@ -8,6 +8,7 @@ interface MasonryGridProps {
   onToggleFavorite: (wallpaper: Wallpaper) => void;
   onSelect: (wallpaper: Wallpaper) => void;
   loading?: boolean;
+  viewMode?: 'masonry' | 'detailed';
 }
 
 export const MasonryGrid: React.FC<MasonryGridProps> = ({
@@ -15,8 +16,37 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
   favoriteIds,
   onToggleFavorite,
   onSelect,
-  loading
+  loading,
+  viewMode = 'masonry'
 }) => {
+  if (viewMode === 'detailed') {
+    return (
+      <div className="w-full space-y-3">
+        {wallpapers.map((wallpaper) => (
+          <WallpaperCard
+            key={wallpaper.id}
+            wallpaper={wallpaper}
+            isFavorite={favoriteIds.has(wallpaper.id)}
+            onToggleFavorite={onToggleFavorite}
+            onSelect={onSelect}
+            viewMode="detailed"
+          />
+        ))}
+
+        {loading && (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={`skel-det-${i}`}
+                className="w-full h-36 rounded-2xl glass-card skeleton-shimmer border border-white/5"
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       {/* CSS Columns Masonry */}
@@ -28,6 +58,7 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
             isFavorite={favoriteIds.has(wallpaper.id)}
             onToggleFavorite={onToggleFavorite}
             onSelect={onSelect}
+            viewMode="masonry"
           />
         ))}
 

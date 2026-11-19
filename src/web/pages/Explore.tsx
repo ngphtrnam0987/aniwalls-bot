@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Loader2, Frown, X, Sparkles } from 'lucide-react';
-import { Wallpaper, SearchFilters, OrientationFilter, ResolutionFilter, ProviderName, SortFilter } from '@/shared/types/wallpaper';
+import { Wallpaper, SearchFilters, OrientationFilter, ResolutionFilter, ProviderName, SortFilter, SearchInsight, SearchResult } from '@/shared/types/wallpaper';
 import { FilterBar } from '../components/FilterBar';
+import { SearchInsightBar } from '../components/SearchInsightBar';
 import { MasonryGrid } from '../components/MasonryGrid';
 import { Language, I18N } from '../types';
 
@@ -12,7 +13,7 @@ interface ExploreProps {
   favoriteIds: Set<string>;
   onToggleFavorite: (w: Wallpaper) => void;
   onSelectWallpaper: (w: Wallpaper) => void;
-  onFetchWallpapers: (filters: SearchFilters) => Promise<{ wallpapers: Wallpaper[]; hasMore: boolean }>;
+  onFetchWallpapers: (filters: SearchFilters) => Promise<SearchResult>;
   language: Language;
 }
 
@@ -31,14 +32,18 @@ export const Explore: React.FC<ExploreProps> = ({
   const [query, setQuery] = useState(initialQuery);
   const [orientation, setOrientation] = useState<OrientationFilter>(initialOrientation);
   const [resolution, setResolution] = useState<ResolutionFilter>(initialResolution);
+  const [color, setColor] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'masonry' | 'detailed'>('masonry');
   const [selectedProviders, setSelectedProviders] = useState<ProviderName[]>([
     'wallhaven',
+    'zerochan',
     'konachan',
     'safebooru',
     'yandere',
     'danbooru',
     'tbib',
-    'nekos_best'
+    'nekos_best',
+    'nekosapi'
   ]);
   const [sort, setSort] = useState<SortFilter>('relevance');
 
@@ -47,6 +52,8 @@ export const Explore: React.FC<ExploreProps> = ({
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [insights, setInsights] = useState<SearchInsight | undefined>();
+  const [executionTimeMs, setExecutionTimeMs] = useState<number | undefined>();
 
   // Sync initial props
   useEffect(() => {
@@ -70,6 +77,7 @@ export const Explore: React.FC<ExploreProps> = ({
           resolution,
           providers: selectedProviders,
           sort,
+          color,
           page: 1,
           limit: 20
         });
@@ -77,6 +85,8 @@ export const Explore: React.FC<ExploreProps> = ({
         if (!isCancelled) {
           setWallpapers(res.wallpapers);
           setHasMore(res.hasMore);
+          setInsights(res.insights);
+          setExecutionTimeMs(res.executionTimeMs);
         }
       } catch (err) {
         console.error('Failed to load explore wallpapers:', err);
@@ -90,7 +100,7 @@ export const Explore: React.FC<ExploreProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [query, orientation, resolution, selectedProviders, sort]);
+  }, [query, orientation, resolution, selectedProviders, sort, color]);
 
   const handleLoadMore = async () => {
     if (loadingMore || !hasMore) return;
@@ -104,6 +114,7 @@ export const Explore: React.FC<ExploreProps> = ({
         resolution,
         providers: selectedProviders,
         sort,
+        color,
         page: nextPage,
         limit: 20
       });
@@ -111,6 +122,8 @@ export const Explore: React.FC<ExploreProps> = ({
       setWallpapers((prev) => [...prev, ...res.wallpapers]);
       setPage(nextPage);
       setHasMore(res.hasMore);
+      if (res.insights) setInsights(res.insights);
+      if (res.executionTimeMs) setExecutionTimeMs(res.executionTimeMs);
     } catch (err) {
       console.error('Failed to load more wallpapers:', err);
     } finally {
@@ -162,6 +175,7 @@ export const Explore: React.FC<ExploreProps> = ({
           {[
             { label: 'Cyberpunk 4K PC', q: 'cyberpunk city', r: '4k' as ResolutionFilter, o: 'landscape' as OrientationFilter },
             { label: 'Vũ trụ Galaxy 4K', q: 'space galaxy', r: '4k' as ResolutionFilter, o: 'landscape' as OrientationFilter },
+            { label: 'Frieren 4K', q: 'frieren', r: 'all' as ResolutionFilter, o: 'all' as OrientationFilter },
             { label: 'Mưa ban đêm PC', q: 'rain night city', r: 'all' as ResolutionFilter, o: 'landscape' as OrientationFilter },
             { label: 'Hoa anh đào Phone', q: 'sakura cherry blossom', r: 'all' as ResolutionFilter, o: 'portrait' as OrientationFilter },
             { label: 'Tối giản Scenery', q: 'minimalist scenery', r: 'all' as ResolutionFilter, o: 'all' as OrientationFilter }
@@ -190,9 +204,24 @@ export const Explore: React.FC<ExploreProps> = ({
           onToggleProvider={handleToggleProvider}
           sort={sort}
           onSortChange={setSort}
+          color={color}
+          onColorChange={setColor}
           language={language}
         />
       </div>
+
+      {/* Rich Search Insight Bar */}
+      {wallpapers.length > 0 && (
+        <SearchInsightBar
+          insight={insights}
+          executionTimeMs={executionTimeMs}
+          totalCount={wallpapers.length}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onFilterTag={(tag) => setQuery(tag)}
+          language={language}
+        />
+      )}
 
       {/* Main Wallpaper Grid */}
       <MasonryGrid
@@ -201,6 +230,7 @@ export const Explore: React.FC<ExploreProps> = ({
         onToggleFavorite={onToggleFavorite}
         onSelect={onSelectWallpaper}
         loading={loading}
+        viewMode={viewMode}
       />
 
       {/* Empty State */}

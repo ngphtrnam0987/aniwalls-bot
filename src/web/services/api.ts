@@ -23,6 +23,7 @@ export const ApiClient = {
     if (filters.orientation && filters.orientation !== 'all') params.set('orientation', filters.orientation);
     if (filters.resolution && filters.resolution !== 'all') params.set('resolution', filters.resolution);
     if (filters.aspectRatio && filters.aspectRatio !== 'all') params.set('aspectRatio', filters.aspectRatio);
+    if (filters.color && filters.color !== 'all') params.set('color', filters.color);
     if (filters.sort) params.set('sort', filters.sort);
     if (filters.page) params.set('page', String(filters.page));
     if (filters.limit) params.set('limit', String(filters.limit));

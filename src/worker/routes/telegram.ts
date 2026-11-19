@@ -728,6 +728,14 @@ function buildWallpaperCaption(w: Wallpaper, index: number, total: number, extra
     `🌐 <b>Provider:</b> ${w.provider.toUpperCase()}\n` +
     `👤 <b>Artist:</b> ${artistText}`;
 
+  if (w.characters && w.characters.length > 0) {
+    caption += `\n✨ <b>Character:</b> ${escapeHtml(w.characters.slice(0, 3).join(', '))}`;
+  }
+
+  if (w.series && w.series.length > 0) {
+    caption += `\n📺 <b>Anime:</b> ${escapeHtml(w.series.slice(0, 2).join(', '))}`;
+  }
+
   if (extraNote) {
     caption += `\n\n💡 <i>${escapeHtml(extraNote)}</i>`;
   }

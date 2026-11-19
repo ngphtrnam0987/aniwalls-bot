@@ -150,19 +150,21 @@ describe('Expanded Anime Wallpaper Providers', () => {
     expect(w.resolution).toBe('3840x2160');
   });
 
-  it('5. SearchEngine should aggregate all 7 active providers concurrently', async () => {
+  it('5. SearchEngine should aggregate all active providers concurrently', async () => {
     const engine = new SearchEngine();
     expect(engine).toBeDefined();
 
-    // Verify all 7 providers are instantiated
+    // Verify all 9 providers are instantiated
     const providers = (engine as any).providers;
-    expect(providers.size).toBe(7);
+    expect(providers.size).toBe(9);
     expect(providers.has('wallhaven')).toBe(true);
+    expect(providers.has('zerochan')).toBe(true);
     expect(providers.has('konachan')).toBe(true);
     expect(providers.has('safebooru')).toBe(true);
     expect(providers.has('yandere')).toBe(true);
     expect(providers.has('danbooru')).toBe(true);
     expect(providers.has('tbib')).toBe(true);
     expect(providers.has('nekos_best')).toBe(true);
+    expect(providers.has('nekosapi')).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { SlidersHorizontal, Sparkles } from 'lucide-react';
+import { SlidersHorizontal, Sparkles, Palette } from 'lucide-react';
 import { OrientationFilter, ResolutionFilter, ProviderName, SortFilter } from '@/shared/types/wallpaper';
 import { Language, I18N } from '../types';
 
@@ -12,6 +12,8 @@ interface FilterBarProps {
   onToggleProvider: (p: ProviderName) => void;
   sort: SortFilter;
   onSortChange: (s: SortFilter) => void;
+  color?: string;
+  onColorChange?: (c: string) => void;
   language: Language;
 }
 
@@ -24,6 +26,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   onToggleProvider,
   sort,
   onSortChange,
+  color = 'all',
+  onColorChange,
   language
 }) => {
   const t = I18N[language];
@@ -45,22 +49,26 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
   const allProviders: ProviderName[] = [
     'wallhaven',
+    'zerochan',
     'konachan',
     'safebooru',
     'yandere',
     'danbooru',
     'tbib',
-    'nekos_best'
+    'nekos_best',
+    'nekosapi'
   ];
 
   const providerLabels: Record<ProviderName, string> = {
     wallhaven: 'Wallhaven',
+    zerochan: 'Zerochan',
     konachan: 'Konachan',
     safebooru: 'Safebooru',
     yandere: 'Yande.re',
     danbooru: 'Danbooru',
     tbib: 'TBIB',
-    nekos_best: 'Nekos.best'
+    nekos_best: 'Nekos.best',
+    nekosapi: 'NekosAPI'
   };
 
   const sorts: Array<{ id: SortFilter; label: string }> = [
@@ -69,6 +77,17 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     { id: 'resolution', label: t.highestRes },
     { id: 'newest', label: t.newest },
     { id: 'random', label: t.random }
+  ];
+
+  const colorOptions: Array<{ id: string; label: string; hex: string }> = [
+    { id: 'all', label: 'Tất cả màu', hex: '#6B7280' },
+    { id: 'black', label: 'OLED', hex: '#111827' },
+    { id: 'purple', label: 'Tím', hex: '#A855F7' },
+    { id: 'blue', label: 'Xanh lam', hex: '#3B82F6' },
+    { id: 'pink', label: 'Hồng', hex: '#EC4899' },
+    { id: 'green', label: 'Xanh lá', hex: '#10B981' },
+    { id: 'red', label: 'Đỏ', hex: '#EF4444' },
+    { id: 'white', label: 'Trắng', hex: '#E5E7EB' }
   ];
 
   return (
@@ -133,7 +152,36 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         })}
       </div>
 
-      {/* Row 3: Sort selector */}
+      {/* Row 3: Dominant Color Swatches */}
+      {onColorChange && (
+        <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar pb-1">
+          <span className="text-[11px] font-semibold text-gray-400 whitespace-nowrap px-1 flex items-center">
+            <Palette className="w-3 h-3 mr-1 text-pink-400" /> Màu:
+          </span>
+          {colorOptions.map((opt) => {
+            const isSelected = color === opt.id;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => onColorChange(opt.id)}
+                className={`flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
+                  isSelected
+                    ? 'bg-white/20 text-white font-bold border border-white/30 shadow-sm'
+                    : 'glass-button text-gray-300 hover:text-white'
+                }`}
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full border border-white/30 flex-shrink-0"
+                  style={{ backgroundColor: opt.hex }}
+                />
+                <span>{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Row 4: Sort selector */}
       <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
         <span className="text-[11px] font-semibold text-gray-400 whitespace-nowrap px-1">
           {t.sort}:
