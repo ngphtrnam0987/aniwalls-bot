@@ -43,3 +43,20 @@ export const FavoriteActionSchema = z.object({
   wallpaper_id: z.string().min(1),
   wallpaper: z.any().optional()
 });
+
+export const SmartSearchOutputSchema = z.object({
+  keywords: z.string().default(''),
+  orientation: OrientationEnum.default('all'),
+  resolution: ResolutionEnum.default('all'),
+  colors: z.array(z.string()).default([]),
+  themes: z.array(z.string()).default([]),
+  negativeKeywords: z.array(z.string()).default([]),
+  explanation: z.string().default(''),
+  isAiGenerated: z.boolean().default(false)
+});
+
+export const SmartSearchRequestSchema = z.object({
+  query: z.string().min(1, 'Vui lòng nhập câu mô tả tìm kiếm.'),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  page: z.coerce.number().int().min(1).default(1)
+});

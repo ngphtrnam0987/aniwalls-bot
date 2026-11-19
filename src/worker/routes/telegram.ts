@@ -3,8 +3,12 @@ import { Env, DbClient } from '../db/client';
 import { TelegramService } from '../services/telegram-service';
 import { SearchEngine } from '../providers';
 import { DownloadService } from '../services/download-service';
+import { SauceNaoService } from '../services/saucenao-service';
+import { TraceMoeService } from '../services/tracemoe-service';
+import { SmartSearchService } from '../services/smart-search';
 import { TelegramUpdate, TelegramInlineKeyboardMarkup, TelegramInlineKeyboardButton } from '@/shared/types/telegram';
-import { Wallpaper, ResolutionFilter, OrientationFilter } from '@/shared/types/wallpaper';
+import { Wallpaper } from '@/shared/types/wallpaper';
+import { ReverseSearchItem, SceneSearchItem } from '@/shared/types/api';
 
 export const telegramRouter = new Hono<{ Bindings: Env }>();
 
@@ -39,13 +43,11 @@ telegramRouter.post('/webhook', async (c) => {
 
         await telegram.answerCallbackQuery(cb.id, { text: '⏳ Đang chuẩn bị tải ảnh gốc...' });
 
-        // Retrieve wallpaper metadata
         let wallpaper: Wallpaper | null = null;
         const wallpaperId = `${provider}_${postId}`;
         wallpaper = await searchEngine.getById(wallpaperId);
 
         if (!wallpaper) {
-          // Check favorites
           const favs = await db.getFavorites(userId, 1, 50);
           const found = favs.wallpapers.find((w) => w.provider === provider && w.providerPostId === postId);
           if (found) wallpaper = found;
@@ -104,7 +106,6 @@ telegramRouter.post('/webhook', async (c) => {
           await telegram.answerCallbackQuery(cb.id, { text: '💔 Đã xóa khỏi danh sách yêu thích.' });
         }
 
-        // Seamlessly update reply_markup button text without re-uploading photo
         if (cb.message && wallpaper && sessionId) {
           const isNowFav = action === 'add';
           const session = await db.getSearchSession(sessionId);
@@ -149,37 +150,7 @@ telegramRouter.post('/webhook', async (c) => {
         const caption = buildWallpaperCaption(wallpaper, targetIndex + 1, searchRes.wallpapers.length);
         const markup = buildWallpaperKeyboard(wallpaper, isFav, sessionId, targetIndex, searchRes.wallpapers.length);
 
-        if (cb.message) {
-          await telegram.editMessageMedia(
-            cb.message.chat.id,
-            cb.message.message_id,
-            {
-              type: 'photo',
-              media: wallpaper.previewUrl,
-              caption,
-              parse_mode: 'HTML'
-            },
-            markup
-          );
-        }
-
         await telegram.answerCallbackQuery(cb.id);
-        return c.text('OK');
-      }
-
-      // Action: Favorites Navigation (fnav:<index>)
-      if (data.startsWith('fnav:')) {
-        const targetIndex = parseInt(data.slice(5), 10);
-        const favResult = await db.getFavorites(userId, 1, 50);
-
-        if (!favResult.wallpapers || targetIndex < 0 || targetIndex >= favResult.wallpapers.length) {
-          await telegram.answerCallbackQuery(cb.id, { text: 'Không còn hình nền yêu thích nào.' });
-          return c.text('OK');
-        }
-
-        const wallpaper = favResult.wallpapers[targetIndex];
-        const caption = buildFavoritesCaption(wallpaper, targetIndex + 1, favResult.total);
-        const markup = buildFavoritesKeyboard(wallpaper, targetIndex, favResult.wallpapers.length);
 
         if (cb.message) {
           await telegram.editMessageMedia(
@@ -194,12 +165,10 @@ telegramRouter.post('/webhook', async (c) => {
             markup
           );
         }
-
-        await telegram.answerCallbackQuery(cb.id);
         return c.text('OK');
       }
 
-      // Action: Remove Favorite from Favorites View (fdel:<provider>:<postId>:<index>)
+      // Action: Remove from Favorites list directly (/favorites view)
       if (data.startsWith('fdel:')) {
         const parts = data.split(':');
         const provider = parts[1];
@@ -207,17 +176,12 @@ telegramRouter.post('/webhook', async (c) => {
         const currentIndex = parseInt(parts[3] || '0', 10);
 
         await db.removeFavorite(userId, provider, postId);
-        await telegram.answerCallbackQuery(cb.id, { text: '💔 Đã xóa khỏi yêu thích.' });
+        await telegram.answerCallbackQuery(cb.id, { text: '💔 Đã xóa khỏi yêu thích!' });
 
-        // Load next or previous favorite
         const favResult = await db.getFavorites(userId, 1, 50);
-
-        if (favResult.wallpapers.length === 0) {
+        if (!favResult.wallpapers || favResult.wallpapers.length === 0) {
           if (cb.message) {
-            await telegram.sendMessage(
-              cb.message.chat.id,
-              '❤️ Danh sách yêu thích của bạn hiện đang trống.'
-            );
+            await telegram.sendMessage(userId, '❤️ <b>Bạn chưa có hình nền nào trong danh sách yêu thích.</b>', { parse_mode: 'HTML' });
           }
           return c.text('OK');
         }
@@ -243,13 +207,43 @@ telegramRouter.post('/webhook', async (c) => {
         return c.text('OK');
       }
 
+      // Action: Favorites navigation (fnav:index)
+      if (data.startsWith('fnav:')) {
+        const targetIndex = parseInt(data.split(':')[1], 10);
+        const favResult = await db.getFavorites(userId, 1, 50);
+
+        if (!favResult.wallpapers || targetIndex < 0 || targetIndex >= favResult.wallpapers.length) {
+          await telegram.answerCallbackQuery(cb.id, { text: 'Không còn mục nào khác.' });
+          return c.text('OK');
+        }
+
+        const nextWallpaper = favResult.wallpapers[targetIndex];
+        const caption = buildFavoritesCaption(nextWallpaper, targetIndex + 1, favResult.total);
+        const markup = buildFavoritesKeyboard(nextWallpaper, targetIndex, favResult.wallpapers.length);
+
+        await telegram.answerCallbackQuery(cb.id);
+
+        if (cb.message) {
+          await telegram.editMessageMedia(
+            cb.message.chat.id,
+            cb.message.message_id,
+            {
+              type: 'photo',
+              media: nextWallpaper.previewUrl,
+              caption,
+              parse_mode: 'HTML'
+            },
+            markup
+          );
+        }
+        return c.text('OK');
+      }
+
       // Action: Quick repeat search from /history
       if (data.startsWith('qsearch:')) {
         const queryText = decodeURIComponent(data.slice(8));
         await telegram.answerCallbackQuery(cb.id, { text: `🔍 Đang tìm kiếm: ${queryText}` });
-
-        // Execute search
-        await executeSearchAndReply(telegram, db, searchEngine, userId, queryText);
+        await executeSearchAndReply(telegram, db, searchEngine, userId, queryText, c.env.AI);
         return c.text('OK');
       }
 
@@ -261,6 +255,37 @@ telegramRouter.post('/webhook', async (c) => {
         if (cb.message) {
           await telegram.sendMessage(userId, '🗑️ <b>Lịch sử tìm kiếm đã được dọn sạch.</b>', { parse_mode: 'HTML' });
         }
+        return c.text('OK');
+      }
+
+      // Action: Trigger Reverse Search via SauceNAO from Photo choice
+      if (data.startsWith('rev:sauce:')) {
+        const fileId = data.slice(10);
+        await telegram.answerCallbackQuery(cb.id, { text: '⏳ Đang phân tích nguồn tranh qua SauceNAO...' });
+        await handleSauceNaoSearch(telegram, db, fileId, userId, c.env.SAUCENAO_API_KEY, searchEngine);
+        return c.text('OK');
+      }
+
+      // Action: Trigger Scene Recognition via trace.moe from Photo choice
+      if (data.startsWith('rev:scene:')) {
+        const fileId = data.slice(10);
+        await telegram.answerCallbackQuery(cb.id, { text: '⏳ Đang nhận diện tập phim qua trace.moe...' });
+        await handleTraceMoeSearch(telegram, db, fileId, userId, searchEngine);
+        return c.text('OK');
+      }
+
+      // Action: Find High Resolution Wallpapers from reverse search result
+      if (data.startsWith('rev:hires:')) {
+        const sessionId = data.slice(10);
+        const session = await db.getSearchSession(sessionId);
+
+        if (!session) {
+          await telegram.answerCallbackQuery(cb.id, { text: 'Phiên tìm kiếm đã hết hạn.' });
+          return c.text('OK');
+        }
+
+        await telegram.answerCallbackQuery(cb.id, { text: `✨ Tìm hình nền chất lượng cao: ${session.query}` });
+        await executeSearchAndReply(telegram, db, searchEngine, userId, session.query, c.env.AI);
         return c.text('OK');
       }
 
@@ -290,7 +315,42 @@ telegramRouter.post('/webhook', async (c) => {
       language: user.language_code || 'vi'
     });
 
-    const text = (msg.text || '').trim();
+    const text = (msg.text || msg.caption || '').trim();
+    const photo = msg.photo && msg.photo.length > 0 ? msg.photo[msg.photo.length - 1] : null;
+
+    // Handle Photo Message
+    if (photo) {
+      if (text.startsWith('/sauce')) {
+        await handleSauceNaoSearch(telegram, db, photo.file_id, chatId, c.env.SAUCENAO_API_KEY, searchEngine);
+        return c.text('OK');
+      }
+      if (text.startsWith('/scene')) {
+        await handleTraceMoeSearch(telegram, db, photo.file_id, chatId, searchEngine);
+        return c.text('OK');
+      }
+
+      // User sent photo without command -> Prompt interactive menu
+      const buttons: TelegramInlineKeyboardButton[][] = [
+        [
+          { text: '🔎 Tìm nguồn tranh vẽ (SauceNAO)', callback_data: `rev:sauce:${photo.file_id}` }
+        ],
+        [
+          { text: '🎬 Nhận diện tập phim Anime (trace.moe)', callback_data: `rev:scene:${photo.file_id}` }
+        ]
+      ];
+
+      await telegram.sendMessage(
+        chatId,
+        `📸 <b>Bạn vừa gửi một hình ảnh!</b>\n\n` +
+        `Bạn muốn tìm kiếm thông tin gì từ hình ảnh này? Vui lòng chọn bên dưới:`,
+        {
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: buttons }
+        }
+      );
+      return c.text('OK');
+    }
+
     if (!text) return c.text('OK');
 
     // Command: /start
@@ -298,12 +358,14 @@ telegramRouter.post('/webhook', async (c) => {
       const welcomeText =
         `🎴 <b>Chào mừng bạn đến với AniWalls!</b>\n\n` +
         `Kho hình nền anime chất lượng cao hỗ trợ 1080p, 2K QHD, 4K UHD và 8K UHD từ nguồn Wallhaven công khai.\n\n` +
-        `⚡ <b>Các lệnh khả dụng:</b>\n` +
-        `• <code>/search &lt;từ khóa&gt;</code> – Tìm hình nền theo tên nhân vật hoặc phong cảnh\n` +
+        `⚡ <b>Các tính năng & lệnh nổi bật:</b>\n` +
+        `• <code>/search &lt;từ khóa&gt;</code> – Tìm hình nền theo tên nhân vật, phong cảnh hoặc câu mô tả tự nhiên\n` +
+        `• <code>/sauce</code> – Tìm nguồn gốc tranh vẽ, tác giả và link bài đăng gốc (gửi kèm ảnh hoặc reply ảnh)\n` +
+        `• <code>/scene</code> – Nhận diện tên anime, tập phim và thời điểm từ ảnh chụp màn hình\n` +
         `• <code>/favorites</code> – Xem danh sách hình nền bạn đã lưu\n` +
         `• <code>/history</code> – Xem và lặp lại các tìm kiếm gần đây\n` +
-        `• <code>/help</code> – Hướng dẫn chi tiết và cú pháp lọc nâng cao\n\n` +
-        `💡 <i>Bạn cũng có thể gõ trực tiếp từ khóa vào khung chat để tìm kiếm ngay lập tức!</i>`;
+        `• <code>/help</code> – Hướng dẫn chi tiết cú pháp lọc nâng cao\n\n` +
+        `💡 <i>Bạn cũng có thể gửi trực tiếp một hình ảnh để tìm nguồn hoặc nhận diện phim anime!</i>`;
 
       await telegram.sendMessage(chatId, welcomeText, { parse_mode: 'HTML' });
       return c.text('OK');
@@ -312,22 +374,60 @@ telegramRouter.post('/webhook', async (c) => {
     // Command: /help
     if (text === '/help') {
       const helpText =
-        `📖 <b>HƯỚNG DẪN TÌM KIẾM HÌNH NỀN ANIWALLS</b>\n\n` +
-        `<b>1. Tìm kiếm cơ bản:</b>\n` +
-        `• <code>/search &lt;từ khóa&gt;</code> hoặc gửi tin nhắn thông thường.\n\n` +
-        `<b>2. Lọc theo độ phân giải:</b>\n` +
-        `• Thêm từ khóa: <code>4k</code>, <code>2k</code>, <code>1080p</code>, <code>8k</code>\n` +
-        `  <i>Ví dụ:</i> <code>nature 4k</code>, <code>city 1080p</code>\n\n` +
-        `<b>3. Lọc theo tỷ lệ / thiết bị:</b>\n` +
-        `• Hình nền điện thoại (9:16): thêm <code>mobile</code> hoặc <code>phone</code>\n` +
-        `• Hình nền máy tính (16:9): thêm <code>desktop</code> hoặc <code>pc</code>\n` +
-        `• Màn hình siêu rộng (21:9): thêm <code>ultrawide</code>\n\n` +
-        `<b>4. Lưu yêu thích & tải ảnh gốc:</b>\n` +
-        `• Bấm <b>[❤️ Favorite]</b> để lưu ảnh vào bộ sưu tập cá nhân.\n` +
-        `• Bấm <b>[⬇️ Download Original]</b> để tải trực tiếp ảnh gốc không nén.\n` +
-        `• Xem lại bộ sưu tập bất cứ lúc nào bằng lệnh <code>/favorites</code>.`;
+        `📖 <b>HƯỚNG DẪN SỬ DỤNG ANIWALLS</b>\n\n` +
+        `<b>1. Tìm kiếm hình nền thông minh:</b>\n` +
+        `• Gõ trực tiếp câu miêu tả tự nhiên:\n` +
+        `  <i>Ví dụ:</i> <code>phong cảnh thành phố cyberpunk 4k pc</code>\n` +
+        `  <i>Ví dụ:</i> <code>cô gái dưới mưa hoa anh đào điện thoại</code>\n\n` +
+        `<b>2. Tìm nguồn tranh vẽ (/sauce):</b>\n` +
+        `• Gửi ảnh kèm chú thích <code>/sauce</code> hoặc reply ảnh với lệnh <code>/sauce</code>.\n` +
+        `• Bot sẽ phân tích qua cơ sở dữ liệu SauceNAO, trả về tên tác giả, link Pixiv/Twitter và nút tìm ảnh 4K tương tự.\n\n` +
+        `<b>3. Nhận diện tập phim Anime (/scene):</b>\n` +
+        `• Gửi ảnh chụp màn hình kèm chú thích <code>/scene</code> hoặc reply ảnh với lệnh <code>/scene</code>.\n` +
+        `• Bot sẽ nhận diện tên anime, tập phim, phút giây chính xác qua trace.moe.\n\n` +
+        `<b>4. Lọc độ phân giải & thiết bị:</b>\n` +
+        `• Độ phân giải: <code>4k</code>, <code>2k</code>, <code>1080p</code>, <code>8k</code>\n` +
+        `• Thiết bị: <code>mobile</code> / <code>phone</code> (dọc), <code>desktop</code> / <code>pc</code> (ngang), <code>ultrawide</code> (21:9)`;
 
       await telegram.sendMessage(chatId, helpText, { parse_mode: 'HTML' });
+      return c.text('OK');
+    }
+
+    // Command: /sauce (as text without photo attached)
+    if (text.startsWith('/sauce')) {
+      const replyPhoto = msg.reply_to_message?.photo && msg.reply_to_message.photo.length > 0
+        ? msg.reply_to_message.photo[msg.reply_to_message.photo.length - 1]
+        : null;
+
+      if (!replyPhoto) {
+        await telegram.sendMessage(
+          chatId,
+          `💡 <i>Vui lòng gửi kèm hình ảnh hoặc trả lời (Reply) vào một ảnh đã gửi trước đó kèm lệnh /sauce để tìm nguồn tranh vẽ.</i>`,
+          { parse_mode: 'HTML' }
+        );
+        return c.text('OK');
+      }
+
+      await handleSauceNaoSearch(telegram, db, replyPhoto.file_id, chatId, c.env.SAUCENAO_API_KEY, searchEngine);
+      return c.text('OK');
+    }
+
+    // Command: /scene (as text without photo attached)
+    if (text.startsWith('/scene')) {
+      const replyPhoto = msg.reply_to_message?.photo && msg.reply_to_message.photo.length > 0
+        ? msg.reply_to_message.photo[msg.reply_to_message.photo.length - 1]
+        : null;
+
+      if (!replyPhoto) {
+        await telegram.sendMessage(
+          chatId,
+          `💡 <i>Vui lòng gửi kèm ảnh chụp màn hình anime hoặc trả lời (Reply) vào một ảnh có sẵn kèm lệnh /scene để nhận diện tập phim.</i>`,
+          { parse_mode: 'HTML' }
+        );
+        return c.text('OK');
+      }
+
+      await handleTraceMoeSearch(telegram, db, replyPhoto.file_id, chatId, searchEngine);
       return c.text('OK');
     }
 
@@ -345,7 +445,6 @@ telegramRouter.post('/webhook', async (c) => {
         return c.text('OK');
       }
 
-      // Display the first favorite with navigation controls
       const firstFav = favResult.wallpapers[0];
       const caption = buildFavoritesCaption(firstFav, 1, favResult.total);
       const keyboard = buildFavoritesKeyboard(firstFav, 0, favResult.wallpapers.length);
@@ -400,13 +499,13 @@ telegramRouter.post('/webhook', async (c) => {
     if (!queryStr) {
       await telegram.sendMessage(
         chatId,
-        '🔎 Vui lòng nhập từ khóa tìm kiếm.\n<i>Ví dụ:</i> <code>/search landscape 4k</code> hoặc <code>city mobile</code>',
+        '🔎 Vui lòng nhập từ khóa hoặc câu miêu tả tìm kiếm.\n<i>Ví dụ:</i> <code>/search landscape 4k pc</code> hoặc <code>thành phố cyberpunk màu tím</code>',
         { parse_mode: 'HTML' }
       );
       return c.text('OK');
     }
 
-    await executeSearchAndReply(telegram, db, searchEngine, chatId, queryStr);
+    await executeSearchAndReply(telegram, db, searchEngine, chatId, queryStr, c.env.AI);
     return c.text('OK');
   }
 
@@ -414,7 +513,132 @@ telegramRouter.post('/webhook', async (c) => {
 });
 
 // ==========================================
-// HELPER FUNCTIONS
+// REVERSE SEARCH & SCENE HANDLERS
+// ==========================================
+
+async function handleSauceNaoSearch(
+  telegram: TelegramService,
+  db: DbClient,
+  fileId: string,
+  chatId: number,
+  sauceNaoApiKey?: string,
+  searchEngine?: SearchEngine
+): Promise<void> {
+  const file = await telegram.getFile(fileId);
+  if (!file?.file_path) {
+    await telegram.sendMessage(chatId, '❌ Không thể tải hình ảnh từ Telegram. Vui lòng thử lại sau.');
+    return;
+  }
+
+  const downloadUrl = telegram.getFileDownloadUrl(file.file_path);
+  const sauceService = new SauceNaoService(sauceNaoApiKey);
+
+  await telegram.sendMessage(chatId, '🔍 <i>Đang phân tích hình ảnh qua cơ sở dữ liệu SauceNAO...</i>', { parse_mode: 'HTML' });
+
+  const result = await sauceService.searchByImageUrl(downloadUrl);
+
+  if (!result.success) {
+    await telegram.sendMessage(chatId, `⚠️ ${result.message || 'Không thể tìm kiếm nguồn ảnh.'}`);
+    return;
+  }
+
+  if (result.results.length === 0) {
+    await telegram.sendMessage(chatId, '❌ Không tìm thấy nguồn phù hợp trên cơ sở dữ liệu tranh vẽ.');
+    return;
+  }
+
+  const topMatch = result.results[0];
+
+  // Record reverse search history
+  await db.addReverseSearchHistory(chatId, 'saucenao', topMatch);
+
+  // Extract high res query if possible
+  const hiresQuery = sauceService.extractHighResQuery(topMatch);
+
+  let sessionId = '';
+  if (hiresQuery) {
+    sessionId = `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    await db.saveSearchSession(sessionId, chatId, hiresQuery, JSON.stringify({ query: hiresQuery }), 1, 86400);
+  }
+
+  const caption = buildSauceCaption(topMatch);
+  const keyboard = buildSauceKeyboard(topMatch, sessionId);
+
+  if (topMatch.thumbnailUrl) {
+    await telegram.sendPhoto(chatId, topMatch.thumbnailUrl, {
+      caption,
+      parse_mode: 'HTML',
+      reply_markup: keyboard
+    });
+  } else {
+    await telegram.sendMessage(chatId, caption, {
+      parse_mode: 'HTML',
+      reply_markup: keyboard
+    });
+  }
+}
+
+async function handleTraceMoeSearch(
+  telegram: TelegramService,
+  db: DbClient,
+  fileId: string,
+  chatId: number,
+  searchEngine?: SearchEngine
+): Promise<void> {
+  const file = await telegram.getFile(fileId);
+  if (!file?.file_path) {
+    await telegram.sendMessage(chatId, '❌ Không thể tải hình ảnh từ Telegram. Vui lòng thử lại sau.');
+    return;
+  }
+
+  const downloadUrl = telegram.getFileDownloadUrl(file.file_path);
+  const traceService = new TraceMoeService();
+
+  await telegram.sendMessage(chatId, '🎬 <i>Đang nhận diện cảnh phim anime qua trace.moe...</i>', { parse_mode: 'HTML' });
+
+  const result = await traceService.searchByImageUrl(downloadUrl);
+
+  if (!result.success) {
+    await telegram.sendMessage(chatId, `⚠️ ${result.message || 'Không thể nhận diện cảnh phim anime.'}`);
+    return;
+  }
+
+  if (result.results.length === 0) {
+    await telegram.sendMessage(chatId, '❌ Không tìm thấy cảnh phim anime trùng khớp.');
+    return;
+  }
+
+  const topMatch = result.results[0];
+
+  // Record history
+  await db.addReverseSearchHistory(chatId, 'tracemoe', topMatch);
+
+  const animeTitle = traceService.extractWallpaperQuery(topMatch);
+  let sessionId = '';
+  if (animeTitle) {
+    sessionId = `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    await db.saveSearchSession(sessionId, chatId, animeTitle, JSON.stringify({ query: animeTitle }), 1, 86400);
+  }
+
+  const caption = buildSceneCaption(topMatch);
+  const keyboard = buildSceneKeyboard(topMatch, sessionId);
+
+  if (topMatch.imagePreviewUrl) {
+    await telegram.sendPhoto(chatId, topMatch.imagePreviewUrl, {
+      caption,
+      parse_mode: 'HTML',
+      reply_markup: keyboard
+    });
+  } else {
+    await telegram.sendMessage(chatId, caption, {
+      parse_mode: 'HTML',
+      reply_markup: keyboard
+    });
+  }
+}
+
+// ==========================================
+// SEARCH EXECUTION & FORMATTING
 // ==========================================
 
 async function executeSearchAndReply(
@@ -422,18 +646,23 @@ async function executeSearchAndReply(
   db: DbClient,
   searchEngine: SearchEngine,
   chatId: number,
-  rawQuery: string
+  rawQuery: string,
+  aiBinding?: any
 ): Promise<void> {
   await telegram.sendMessage(chatId, '🔎 <i>Đang tìm kiếm hình nền chất lượng cao...</i>', { parse_mode: 'HTML' });
 
   // Get user settings from D1
   const userSettings = await db.getUserSettings(chatId);
 
+  // Interpret natural language / extract tags via Smart Search
+  const smartSearch = new SmartSearchService(aiBinding);
+  const parsed = await smartSearch.interpretQuery(rawQuery);
+
   const searchFilters = {
-    query: rawQuery,
+    query: parsed.keywords,
     providers: userSettings.enabled_providers,
-    resolution: userSettings.preferred_resolution,
-    orientation: userSettings.preferred_orientation,
+    resolution: parsed.resolution !== 'all' ? parsed.resolution : userSettings.preferred_resolution,
+    orientation: parsed.orientation !== 'all' ? parsed.orientation : userSettings.preferred_orientation,
     sort: 'relevance' as const,
     page: 1,
     limit: 15,
@@ -445,25 +674,25 @@ async function executeSearchAndReply(
   if (!searchResult.wallpapers || searchResult.wallpapers.length === 0) {
     await telegram.sendMessage(
       chatId,
-      `❌ Không tìm thấy hình nền phù hợp cho từ khóa: <b>${escapeHtml(rawQuery)}</b>\n\n` +
-      `💡 <i>Gợi ý:</i> Thử dùng từ khóa ngắn gọn hơn (ví dụ: <code>sky</code>, <code>night</code>, <code>landscape</code>).`,
+      `❌ Không tìm thấy hình nền phù hợp cho: <b>${escapeHtml(rawQuery)}</b>\n\n` +
+      `💡 <i>Gợi ý:</i> Thử dùng từ khóa ngắn gọn hơn (ví dụ: <code>sky</code>, <code>night</code>, <code>cyberpunk</code>).`,
       { parse_mode: 'HTML' }
     );
     return;
   }
 
-  // Save to search history (deduplicating adjacent identical queries)
+  // Save to search history
   await db.addSearchHistory(chatId, rawQuery, JSON.stringify(searchFilters));
 
   // Create search session for inline pagination
   const sessionId = `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-  await db.saveSearchSession(sessionId, chatId, rawQuery, JSON.stringify(searchFilters), 1, 86400);
+  await db.saveSearchSession(sessionId, chatId, parsed.keywords, JSON.stringify(searchFilters), 1, 86400);
 
   // Pick first wallpaper
   const firstWallpaper = searchResult.wallpapers[0];
   const isFav = await db.isFavorite(chatId, firstWallpaper.provider, firstWallpaper.providerPostId);
 
-  const caption = buildWallpaperCaption(firstWallpaper, 1, searchResult.wallpapers.length);
+  const caption = buildWallpaperCaption(firstWallpaper, 1, searchResult.wallpapers.length, parsed.explanation);
   const keyboard = buildWallpaperKeyboard(firstWallpaper, isFav, sessionId, 0, searchResult.wallpapers.length);
 
   await telegram.sendPhoto(chatId, firstWallpaper.previewUrl, {
@@ -480,7 +709,7 @@ function escapeHtml(text: string): string {
     .replace(/>/g, '&gt;');
 }
 
-function buildWallpaperCaption(w: Wallpaper, index: number, total: number): string {
+function buildWallpaperCaption(w: Wallpaper, index: number, total: number, extraNote?: string): string {
   let sizeText = 'N/A';
   if (w.fileSize) {
     sizeText = `${(w.fileSize / (1024 * 1024)).toFixed(2)} MB`;
@@ -490,15 +719,20 @@ function buildWallpaperCaption(w: Wallpaper, index: number, total: number): stri
     ? escapeHtml(w.artistName)
     : 'Chưa xác định';
 
-  return (
+  let caption =
     `🎴 <b>AniWalls | Result ${index}/${total}</b>\n\n` +
     `🎨 <b>Title:</b> ${escapeHtml(w.title)}\n` +
     `📐 <b>Resolution:</b> ${w.resolution.replace('x', '×')}\n` +
     `🖥 <b>Aspect Ratio:</b> ${w.aspectRatio}\n` +
     `💾 <b>Size:</b> ${sizeText}\n` +
     `🌐 <b>Provider:</b> ${w.provider.toUpperCase()}\n` +
-    `👤 <b>Artist:</b> ${artistText}`
-  );
+    `👤 <b>Artist:</b> ${artistText}`;
+
+  if (extraNote) {
+    caption += `\n\n💡 <i>${escapeHtml(extraNote)}</i>`;
+  }
+
+  return caption;
 }
 
 function buildWallpaperKeyboard(
@@ -583,7 +817,6 @@ function buildFavoritesKeyboard(
 ): TelegramInlineKeyboardMarkup {
   const buttons: TelegramInlineKeyboardButton[][] = [];
 
-  // Row 1: [⬇️ Download Original] [🔗 Original Image URL]
   const row1: TelegramInlineKeyboardButton[] = [
     { text: '⬇️ Download Original', callback_data: `dl:${w.provider}:${w.providerPostId}` }
   ];
@@ -592,7 +825,6 @@ function buildFavoritesKeyboard(
   }
   buttons.push(row1);
 
-  // Row 2: [🌐 Source Post] [👤 Artist Profile] (when available)
   const row2: TelegramInlineKeyboardButton[] = [
     { text: '🌐 Source Post', url: w.postUrl }
   ];
@@ -601,12 +833,10 @@ function buildFavoritesKeyboard(
   }
   buttons.push(row2);
 
-  // Row 3: [💔 Remove Favorite]
   buttons.push([
     { text: '💔 Remove Favorite', callback_data: `fdel:${w.provider}:${w.providerPostId}:${currentIndex}` }
   ]);
 
-  // Row 4: [⬅️ Previous] [Next ➡️]
   const navRow: TelegramInlineKeyboardButton[] = [];
   if (currentIndex > 0) {
     navRow.push({ text: '⬅️ Previous', callback_data: `fnav:${currentIndex - 1}` });
@@ -616,6 +846,74 @@ function buildFavoritesKeyboard(
   }
   if (navRow.length > 0) {
     buttons.push(navRow);
+  }
+
+  return { inline_keyboard: buttons };
+}
+
+function buildSauceCaption(r: ReverseSearchItem): string {
+  const sim = r.similarity.toFixed(1);
+  const barBlocks = Math.min(5, Math.max(1, Math.round(r.similarity / 20)));
+  const bar = '🟩'.repeat(barBlocks) + '⬜'.repeat(5 - barBlocks);
+
+  let text = `🔎 <b>KẾT QUẢ TÌM NGUỒN TRANH (SauceNAO)</b>\n\n`;
+  text += `📊 <b>Độ khớp:</b> [${bar}] ${sim}% (${r.confidenceLabel.toUpperCase()})\n`;
+  if (r.title) text += `🎨 <b>Tiêu đề:</b> ${escapeHtml(r.title)}\n`;
+  if (r.series) text += `📚 <b>Series:</b> ${escapeHtml(r.series)}\n`;
+  if (r.character) text += `👤 <b>Nhân vật:</b> ${escapeHtml(r.character)}\n`;
+  if (r.authorName) text += `🖌 <b>Tác giả:</b> ${escapeHtml(r.authorName)}\n`;
+
+  return text;
+}
+
+function buildSauceKeyboard(r: ReverseSearchItem, sessionId: string): TelegramInlineKeyboardMarkup {
+  const buttons: TelegramInlineKeyboardButton[][] = [];
+
+  const row1: TelegramInlineKeyboardButton[] = [];
+  if (r.sourceUrl) {
+    row1.push({ text: '🌐 Trang nguồn tác giả', url: r.sourceUrl });
+  }
+  if (r.authorUrl) {
+    row1.push({ text: '👤 Hồ sơ tác giả', url: r.authorUrl });
+  }
+  if (row1.length > 0) buttons.push(row1);
+
+  if (sessionId) {
+    buttons.push([
+      { text: '✨ Tìm hình nền chất lượng cao', callback_data: `rev:hires:${sessionId}` }
+    ]);
+  }
+
+  return { inline_keyboard: buttons };
+}
+
+function buildSceneCaption(r: SceneSearchItem): string {
+  const sim = r.similarity.toFixed(1);
+  const barBlocks = Math.min(5, Math.max(1, Math.round(r.similarity / 20)));
+  const bar = '🟩'.repeat(barBlocks) + '⬜'.repeat(5 - barBlocks);
+
+  let text = `🎬 <b>NHẬN DIỆN CẢNH PHIM ANIME (trace.moe)</b>\n\n`;
+  text += `📺 <b>Tên Anime:</b> ${escapeHtml(r.animeTitle.romaji)}\n`;
+  if (r.animeTitle.english) text += `🇬🇧 <b>Tiếng Anh:</b> ${escapeHtml(r.animeTitle.english)}\n`;
+  if (r.episode !== null) text += `🎞 <b>Tập phim:</b> Tập ${r.episode}\n`;
+  text += `⏱ <b>Thời điểm:</b> ${r.timestampFormatted}\n`;
+  text += `📊 <b>Độ khớp:</b> [${bar}] ${sim}% (${r.confidenceLabel.toUpperCase()})\n`;
+
+  return text;
+}
+
+function buildSceneKeyboard(r: SceneSearchItem, sessionId: string): TelegramInlineKeyboardMarkup {
+  const buttons: TelegramInlineKeyboardButton[][] = [];
+
+  const row1: TelegramInlineKeyboardButton[] = [
+    { text: '🌐 Thông tin Anime (AniList)', url: r.anilistUrl }
+  ];
+  buttons.push(row1);
+
+  if (sessionId) {
+    buttons.push([
+      { text: '✨ Tìm hình nền Anime này', callback_data: `rev:hires:${sessionId}` }
+    ]);
   }
 
   return { inline_keyboard: buttons };

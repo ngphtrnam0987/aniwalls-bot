@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Frown, X } from 'lucide-react';
+import { Search, Loader2, Frown, X, Sparkles } from 'lucide-react';
 import { Wallpaper, SearchFilters, OrientationFilter, ResolutionFilter, ProviderName, SortFilter } from '@/shared/types/wallpaper';
 import { FilterBar } from '../components/FilterBar';
 import { MasonryGrid } from '../components/MasonryGrid';
@@ -143,6 +143,33 @@ export const Explore: React.FC<ExploreProps> = ({
               <X className="w-4 h-4" />
             </button>
           )}
+        </div>
+
+        {/* Smart Search Quick Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5 text-[11px]">
+          <span className="text-gray-500 shrink-0 flex items-center gap-1 font-medium">
+            <Sparkles className="w-3 h-3 text-cyan-400" />
+            Gợi ý:
+          </span>
+          {[
+            { label: 'Cyberpunk 4K PC', q: 'cyberpunk city', r: '4k' as ResolutionFilter, o: 'landscape' as OrientationFilter },
+            { label: 'Vũ trụ Galaxy 4K', q: 'space galaxy', r: '4k' as ResolutionFilter, o: 'landscape' as OrientationFilter },
+            { label: 'Mưa ban đêm PC', q: 'rain night city', r: 'all' as ResolutionFilter, o: 'landscape' as OrientationFilter },
+            { label: 'Hoa anh đào Phone', q: 'sakura cherry blossom', r: 'all' as ResolutionFilter, o: 'portrait' as OrientationFilter },
+            { label: 'Tối giản Scenery', q: 'minimalist scenery', r: 'all' as ResolutionFilter, o: 'all' as OrientationFilter }
+          ].map((chip) => (
+            <button
+              key={chip.label}
+              onClick={() => {
+                setQuery(chip.q);
+                setResolution(chip.r);
+                setOrientation(chip.o);
+              }}
+              className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white border border-white/10 shrink-0 transition-colors"
+            >
+              {chip.label}
+            </button>
+          ))}
         </div>
 
         {/* Filter controls */}

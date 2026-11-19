@@ -1,8 +1,8 @@
 import React from 'react';
-import { Home, Compass, Heart, Settings } from 'lucide-react';
+import { Home, Compass, Camera, Heart, Settings } from 'lucide-react';
 import { Language, I18N } from '../types';
 
-export type NavTab = 'home' | 'explore' | 'favorites' | 'settings';
+export type NavTab = 'home' | 'explore' | 'image-search' | 'favorites' | 'settings';
 
 interface BottomNavProps {
   currentTab: NavTab;
@@ -22,6 +22,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const items = [
     { id: 'home' as NavTab, label: t.home, icon: Home },
     { id: 'explore' as NavTab, label: t.explore, icon: Compass },
+    { id: 'image-search' as NavTab, label: t.imageSearch, icon: Camera },
     { id: 'favorites' as NavTab, label: t.favorites, icon: Heart, badge: favoritesCount },
     { id: 'settings' as NavTab, label: t.settings, icon: Settings }
   ];

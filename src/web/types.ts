@@ -54,6 +54,9 @@ export interface Translations {
   apply: string;
   reset: string;
   reverseSearch: string;
+  imageSearch: string;
+  sceneSearch: string;
+  smartSearch: string;
 }
 
 export const I18N: Record<Language, Translations> = {
@@ -108,7 +111,10 @@ export const I18N: Record<Language, Translations> = {
     close: 'Đóng',
     apply: 'Áp dụng',
     reset: 'Đặt lại',
-    reverseSearch: 'Tìm nguồn ảnh'
+    reverseSearch: 'Tìm nguồn tranh',
+    imageSearch: 'Tìm kiếm ảnh',
+    sceneSearch: 'Nhận diện Anime',
+    smartSearch: 'Tìm kiếm thông minh'
   },
   en: {
     appName: 'AniWalls',
@@ -161,6 +167,9 @@ export const I18N: Record<Language, Translations> = {
     close: 'Close',
     apply: 'Apply',
     reset: 'Reset',
-    reverseSearch: 'Reverse Search'
+    reverseSearch: 'Find Artwork Sauce',
+    imageSearch: 'Image Search',
+    sceneSearch: 'Anime Scene Recognition',
+    smartSearch: 'AI Smart Search'
   }
 };

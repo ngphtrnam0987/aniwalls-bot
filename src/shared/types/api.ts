@@ -61,18 +61,71 @@ export interface SearchSessionRecord {
   expires_at: number;
 }
 
+export type ConfidenceLabel = 'high' | 'medium' | 'low';
+
+export interface ReverseSearchItem {
+  similarity: number;
+  confidenceLabel: ConfidenceLabel;
+  title?: string;
+  series?: string;
+  character?: string;
+  authorName?: string;
+  authorUrl?: string;
+  sourceUrl?: string;
+  thumbnailUrl?: string;
+  material?: string;
+  externalUrls?: string[];
+}
+
 export interface ReverseSearchResult {
   success: boolean;
   configured: boolean;
-  results: Array<{
-    similarity: number;
-    title?: string;
-    authorName?: string;
-    authorUrl?: string;
-    sourceUrl?: string;
-    thumbnailUrl?: string;
-    material?: string;
-  }>;
+  provider: 'saucenao';
+  results: ReverseSearchItem[];
+  message?: string;
+  quotaRemaining?: number;
+}
+
+export interface SceneSearchItem {
+  animeTitle: {
+    romaji: string;
+    english?: string;
+    native?: string;
+  };
+  episode: number | string | null;
+  timestamp: number;
+  timestampFormatted: string;
+  similarity: number;
+  confidenceLabel: ConfidenceLabel;
+  videoPreviewUrl?: string;
+  imagePreviewUrl: string;
+  anilistId: number;
+  anilistUrl: string;
+  isAdult?: boolean;
+}
+
+export interface SceneSearchResult {
+  success: boolean;
+  results: SceneSearchItem[];
+  message?: string;
+}
+
+export interface SmartSearchParsed {
+  keywords: string;
+  orientation: OrientationFilter;
+  resolution: ResolutionFilter;
+  colors: string[];
+  themes: string[];
+  negativeKeywords: string[];
+  explanation: string;
+  isAiGenerated: boolean;
+}
+
+export interface SmartSearchResult {
+  success: boolean;
+  parsed: SmartSearchParsed;
+  wallpapers: Wallpaper[];
+  totalEstimate?: number;
   message?: string;
 }
 

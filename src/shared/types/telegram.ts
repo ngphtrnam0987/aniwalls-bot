@@ -41,6 +41,7 @@ export interface TelegramMessage {
   caption?: string;
   photo?: TelegramPhotoSize[];
   document?: TelegramDocument;
+  reply_to_message?: TelegramMessage;
 }
 
 export interface TelegramCallbackQuery {

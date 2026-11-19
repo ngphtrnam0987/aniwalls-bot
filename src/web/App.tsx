@@ -9,6 +9,7 @@ import { BottomNav, NavTab } from './components/BottomNav';
 import { WallpaperDetailModal } from './components/WallpaperDetailModal';
 import { Home } from './pages/Home';
 import { Explore } from './pages/Explore';
+import { ImageSearch } from './pages/ImageSearch';
 import { Favorites } from './pages/Favorites';
 import { Settings } from './pages/Settings';
 
@@ -65,6 +66,7 @@ export const App: React.FC = () => {
       if (hash === 'favorites') setCurrentTab('favorites');
       else if (hash === 'settings') setCurrentTab('settings');
       else if (hash === 'explore') setCurrentTab('explore');
+      else if (hash === 'image-search' || hash === 'sauce') setCurrentTab('image-search');
     };
 
     handleHash();
@@ -221,6 +223,18 @@ export const App: React.FC = () => {
             }}
             onFetchWallpapers={(filters) => ApiClient.searchWallpapers(filters, initData)}
             language={language}
+          />
+        )}
+
+        {currentTab === 'image-search' && (
+          <ImageSearch
+            language={language}
+            initData={initData}
+            triggerHaptic={() => triggerHaptic('light')}
+            onExploreQuery={(q) => {
+              setExploreQuery(q);
+              setCurrentTab('explore');
+            }}
           />
         )}
 

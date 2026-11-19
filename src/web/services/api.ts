@@ -1,5 +1,5 @@
 import { Wallpaper, SearchFilters, SearchResult } from '@/shared/types/wallpaper';
-import { UserSettings } from '@/shared/types/api';
+import { UserSettings, ReverseSearchResult, SceneSearchResult, SmartSearchResult } from '@/shared/types/api';
 
 const API_BASE = '/api';
 
@@ -175,5 +175,101 @@ export const ApiClient = {
       body: JSON.stringify(settings)
     });
     return res.ok;
+  },
+
+  // ==========================================
+  // PHASE 4: REVERSE SEARCH, SCENE & SMART SEARCH
+  // ==========================================
+
+  async reverseSearchByUrl(imageUrl: string, initData?: string): Promise<ReverseSearchResult> {
+    const res = await fetch(`${API_BASE}/reverse-search`, {
+      method: 'POST',
+      headers: getHeaders(initData),
+      body: JSON.stringify({ image_url: imageUrl })
+    });
+    return res.json();
+  },
+
+  async reverseSearchByFile(file: File, initData?: string): Promise<ReverseSearchResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (initData) headers['X-Telegram-Init-Data'] = initData;
+
+    const res = await fetch(`${API_BASE}/reverse-search`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+    return res.json();
+  },
+
+  async sceneSearchByUrl(imageUrl: string, initData?: string): Promise<SceneSearchResult> {
+    const res = await fetch(`${API_BASE}/scene-search`, {
+      method: 'POST',
+      headers: getHeaders(initData),
+      body: JSON.stringify({ image_url: imageUrl })
+    });
+    return res.json();
+  },
+
+  async sceneSearchByFile(file: File, initData?: string): Promise<SceneSearchResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (initData) headers['X-Telegram-Init-Data'] = initData;
+
+    const res = await fetch(`${API_BASE}/scene-search`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+    return res.json();
+  },
+
+  async smartSearch(
+    query: string,
+    options?: { page?: number; limit?: number },
+    initData?: string
+  ): Promise<SmartSearchResult> {
+    const res = await fetch(`${API_BASE}/smart-search`, {
+      method: 'POST',
+      headers: getHeaders(initData),
+      body: JSON.stringify({
+        query,
+        page: options?.page || 1,
+        limit: options?.limit || 20
+      })
+    });
+    return res.json();
+  },
+
+  async getSearchSuggestions(): Promise<{
+    popularTags: string[];
+    resolutions: string[];
+    orientations: Array<{ id: string; label: string }>;
+    sampleSmartPrompts: string[];
+  }> {
+    try {
+      const res = await fetch(`${API_BASE}/search-suggestions`);
+      if (!res.ok) throw new Error('Failed to load suggestions');
+      const json = await res.json() as any;
+      return json.data;
+    } catch {
+      return {
+        popularTags: ['cyberpunk', 'scenery', 'night', 'sakura', 'rain', 'sunset', 'space', 'ocean'],
+        resolutions: ['4k', '2k', '1080p', '8k'],
+        orientations: [
+          { id: 'landscape', label: 'Máy tính (16:9)' },
+          { id: 'portrait', label: 'Điện thoại (9:16)' }
+        ],
+        sampleSmartPrompts: [
+          'hình nền cyberpunk thành phố ban đêm 4k cho máy tính',
+          'cô gái anime dưới trời mưa hoa anh đào điện thoại'
+        ]
+      };
+    }
   }
 };

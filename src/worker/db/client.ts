@@ -10,6 +10,9 @@ export interface Env {
   ENVIRONMENT?: string;
   APP_BASE_URL?: string;
   ASSETS?: Fetcher;
+  AI?: {
+    run(model: string, input: any): Promise<any>;
+  };
 }
 
 export class DbClient {
@@ -395,5 +398,113 @@ export class DbClient {
       }>();
 
     return row || null;
+  }
+
+  // ==========================================
+  // PHASE 4: REVERSE SEARCH & SMART SEARCH HISTORY
+  // ==========================================
+
+  async addReverseSearchHistory(
+    telegram_user_id: number,
+    provider: string,
+    result_metadata: any
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(`
+        INSERT INTO reverse_search_history (telegram_user_id, provider, result_metadata_json, created_at)
+        VALUES (?1, ?2, ?3, ?4)
+      `)
+      .bind(telegram_user_id, provider, JSON.stringify(result_metadata), now)
+      .run();
+  }
+
+  async getReverseSearchHistory(
+    telegram_user_id: number,
+    limit = 10
+  ): Promise<Array<{ id: number; provider: string; result_metadata: any; created_at: string }>> {
+    const rows = await this.db
+      .prepare(`
+        SELECT id, provider, result_metadata_json, created_at
+        FROM reverse_search_history
+        WHERE telegram_user_id = ?1
+        ORDER BY id DESC
+        LIMIT ?2
+      `)
+      .bind(telegram_user_id, limit)
+      .all<{ id: number; provider: string; result_metadata_json: string; created_at: string }>();
+
+    return (rows.results || []).map((r) => {
+      let meta: any = {};
+      try {
+        meta = JSON.parse(r.result_metadata_json);
+      } catch {}
+      return {
+        id: r.id,
+        provider: r.provider,
+        result_metadata: meta,
+        created_at: r.created_at
+      };
+    });
+  }
+
+  async addSmartSearchHistory(
+    telegram_user_id: number,
+    original_query: string,
+    parsed_filters: any
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(`
+        INSERT INTO smart_search_history (telegram_user_id, original_query, parsed_filters_json, created_at)
+        VALUES (?1, ?2, ?3, ?4)
+      `)
+      .bind(telegram_user_id, original_query, JSON.stringify(parsed_filters), now)
+      .run();
+  }
+
+  // ==========================================
+  // PHASE 4: API USAGE & RATE LIMITING
+  // ==========================================
+
+  async checkAndIncrementApiUsage(
+    telegram_user_id: number,
+    provider: string,
+    maxPerDay = 30
+  ): Promise<{ allowed: boolean; remaining: number; count: number }> {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const now = new Date().toISOString();
+
+    const existing = await this.db
+      .prepare(`
+        SELECT request_count
+        FROM api_usage
+        WHERE telegram_user_id = ?1 AND provider = ?2 AND period_start = ?3
+      `)
+      .bind(telegram_user_id, provider, today)
+      .first<{ request_count: number }>();
+
+    const currentCount = existing?.request_count ?? 0;
+    if (currentCount >= maxPerDay) {
+      return { allowed: false, remaining: 0, count: currentCount };
+    }
+
+    const nextCount = currentCount + 1;
+    await this.db
+      .prepare(`
+        INSERT INTO api_usage (telegram_user_id, provider, request_count, period_start, updated_at)
+        VALUES (?1, ?2, 1, ?3, ?4)
+        ON CONFLICT(telegram_user_id, provider, period_start) DO UPDATE SET
+          request_count = request_count + 1,
+          updated_at = ?4
+      `)
+      .bind(telegram_user_id, provider, today, now)
+      .run();
+
+    return {
+      allowed: true,
+      remaining: Math.max(0, maxPerDay - nextCount),
+      count: nextCount
+    };
   }
 }

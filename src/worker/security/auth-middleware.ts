@@ -36,3 +36,31 @@ export async function telegramAuthMiddleware(
 
   await next();
 }
+
+export async function optionalTelegramAuthMiddleware(
+  c: Context<{ Bindings: Env; Variables: { user?: ValidatedTelegramUser; userId?: number } }>,
+  next: Next
+) {
+  const initData = c.req.header('X-Telegram-Init-Data') || c.req.query('initData');
+
+  if (initData) {
+    const botToken = c.env.TELEGRAM_BOT_TOKEN;
+    const result = await validateTelegramWebAppData(initData, botToken);
+
+    if (result.valid && result.user) {
+      c.set('user', result.user);
+      c.set('userId', result.user.id);
+
+      try {
+        const db = new DbClient(c.env.DB);
+        await db.upsertUser({
+          telegram_user_id: result.user.id,
+          username: result.user.username,
+          language: result.user.language_code || 'vi'
+        });
+      } catch {}
+    }
+  }
+
+  await next();
+}

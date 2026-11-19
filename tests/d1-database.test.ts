@@ -8,9 +8,13 @@ import { Wallpaper } from '@/shared/types/wallpaper';
 
 function createD1Mock(): D1Database {
   const sqlite = new DatabaseSync(':memory:');
-  const migrationPath = path.resolve(__dirname, '../migrations/0002_phase2_schema.sql');
-  const migrationSql = fs.readFileSync(migrationPath, 'utf8');
-  sqlite.exec(migrationSql);
+  const migration2Path = path.resolve(__dirname, '../migrations/0002_phase2_schema.sql');
+  const migration2Sql = fs.readFileSync(migration2Path, 'utf8');
+  sqlite.exec(migration2Sql);
+
+  const migration3Path = path.resolve(__dirname, '../migrations/0003_phase4_schema.sql');
+  const migration3Sql = fs.readFileSync(migration3Path, 'utf8');
+  sqlite.exec(migration3Sql);
 
   function createPreparedStatement(query: string, boundParams: any[] = []): D1PreparedStatement {
     return {
@@ -256,5 +260,39 @@ describe('Cloudflare D1 Database & Phase 2 Operations', () => {
     expect(session?.session_id).toBe(sessionId);
     expect(session?.telegram_user_id).toBe(userId);
     expect(session?.query).toBe('cyberpunk');
+  });
+
+  it('10. should record and retrieve reverse search history in D1', async () => {
+    const userId = 9001;
+    await db.addReverseSearchHistory(userId, 'saucenao', {
+      title: 'Test Illustration',
+      similarity: 95.5,
+      author: 'TestArtist'
+    });
+
+    const history = await db.getReverseSearchHistory(userId);
+    expect(history).toHaveLength(1);
+    expect(history[0].provider).toBe('saucenao');
+    expect(history[0].result_metadata.title).toBe('Test Illustration');
+  });
+
+  it('11. should enforce daily rate limit and increment api_usage in D1', async () => {
+    const userId = 9002;
+    const provider = 'saucenao';
+
+    // Limit to 2 for testing
+    const req1 = await db.checkAndIncrementApiUsage(userId, provider, 2);
+    expect(req1.allowed).toBe(true);
+    expect(req1.remaining).toBe(1);
+    expect(req1.count).toBe(1);
+
+    const req2 = await db.checkAndIncrementApiUsage(userId, provider, 2);
+    expect(req2.allowed).toBe(true);
+    expect(req2.remaining).toBe(0);
+    expect(req2.count).toBe(2);
+
+    const req3 = await db.checkAndIncrementApiUsage(userId, provider, 2);
+    expect(req3.allowed).toBe(false);
+    expect(req3.remaining).toBe(0);
   });
 });
